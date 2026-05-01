@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AI Brain Trainer</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, sans-serif; background: #f5f4f0; color: #1a1a1a; min-height: 100vh; padding: 24px 16px; }
+  h1 { font-size: 20px; font-weight: 500; margin-bottom: 20px; text-align: center; color: #1a1a1a; }
+  #app { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; max-width: 780px; margin: 0 auto; }
+  @media (max-width: 560px) { #app { grid-template-columns: 1fr; } }
+  #left, #right { display: flex; flex-direction: column; gap: 12px; }
+  .card { background: #fff; border: 0.5px solid rgba(0,0,0,0.12); border-radius: 12px; padding: 12px 14px; }
+  .lbl { font-size: 12px; color: #888; margin-bottom: 6px; }
+  .row { display: flex; gap: 8px; align-items: center; }
+  .stat { background: #f5f4f0; border-radius: 8px; padding: 8px 10px; flex: 1; text-align: center; }
+  .stat-val { font-size: 19px; font-weight: 500; color: #1a1a1a; }
+  .stat-lbl { font-size: 11px; color: #888; }
+  input[type=text] {
+    width: 100%; font-size: 14px; padding: 8px 10px;
+    border: 0.5px solid rgba(0,0,0,0.2); border-radius: 8px;
+    outline: none; background: #fff; color: #1a1a1a;
+  }
+  input[type=text]:focus { border-color: #7F77DD; box-shadow: 0 0 0 3px rgba(127,119,221,0.15); }
+  input:disabled { background: #f5f4f0; color: #aaa; }
+  button {
+    font-size: 13px; cursor: pointer; padding: 8px 14px;
+    border: 0.5px solid rgba(0,0,0,0.2); border-radius: 8px;
+    background: transparent; color: #1a1a1a;
+  }
+  button:hover { background: #f5f4f0; }
+  button:active { transform: scale(0.98); }
+  .btn-p { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+  .btn-p:hover { background: #333; }
+  #log { font-size: 12px; color: #888; line-height: 1.8; max-height: 110px; overflow-y: auto; }
+  .lc { color: #3B6D11; } .lw { color: #A32D2D; }
+  #train-q { font-size: 15px; font-weight: 500; color: #1a1a1a; min-height: 22px; }
+  .think-bar { height: 5px; border-radius: 3px; background: #eee; overflow: hidden; margin: 5px 0; }
+  .think-fill { height: 100%; border-radius: 3px; background: #7F77DD; transition: width 0.4s; }
+  #guess-box {
+    border-radius: 8px; padding: 10px 12px; margin-top: 8px;
+    border: 0.5px solid rgba(0,0,0,0.12); background: #f5f4f0;
+    transition: background 0.3s, border-color 0.3s;
+  }
+  #guess-val { font-size: 15px; font-weight: 500; color: #1a1a1a; min-height: 20px; }
+  #guess-conf { font-size: 11px; color: #888; margin-top: 2px; }
+  .g-correct { border-color: #3B6D11 !important; background: #EAF3DE !important; }
+  .g-correct #guess-val { color: #27500A; }
+  .g-wrong { border-color: #A32D2D !important; background: #FCEBEB !important; }
+  .g-wrong #guess-val { color: #791F1F; }
+  #next-btn { display: none; }
+  canvas { display: block; }
+</style>
+</head>
+<body>
+
+<h1>AI Brain Trainer</h1>
+
+<div id="app">
+  <div id="left">
+    <div class="card" style="padding:8px 10px;">
+      <div class="lbl">brain activity — side view</div>
+      <canvas id="bc" width="300" height="280" style="border:0.5px solid rgba(0,0,0,0.1);border-radius:8px;background:#fff;width:100%;"></canvas>
+    </div>
+    <div class="card">
+      <div class="lbl">thinking intensity</div>
+      <div class="think-bar"><div class="think-fill" id="tf" style="width:0%"></div></div>
+      <div style="font-size:11px;color:#888;" id="tl">idle</div>
+    </div>
+  </div>
+
+  <div id="right">
+    <div class="card">
+      <div class="row">
+        <div class="stat"><div class="stat-val" id="sm">0</div><div class="stat-lbl">memories</div></div>
+        <div class="stat"><div class="stat-val" id="sa">—</div><div class="stat-lbl">accuracy</div></div>
+        <div class="stat"><div class="stat-val" id="sl">1</div><div class="stat-lbl">level</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="lbl">teach the brain</div>
+      <div class="row" style="margin-bottom:6px;">
+        <input type="text" id="tq" placeholder="Question or fact…" />
+      </div>
+      <div class="row" style="margin-bottom:8px;">
+        <input type="text" id="ta" placeholder="Answer…" onkeydown="if(event.key==='Enter')teach()" />
+      </div>
+      <button class="btn-p" onclick="teach()">Teach</button>
+      <div id="tm" style="font-size:12px;color:#888;margin-top:6px;min-height:16px;"></div>
+    </div>
+
+    <div class="card">
+      <div class="lbl">quiz the brain</div>
+      <div id="train-q" style="margin-bottom:6px;">Press "Ask" to start</div>
+
+      <div id="guess-box">
+        <div style="font-size:11px;color:#888;margin-bottom:3px;">brain's guess</div>
+        <div id="guess-val" style="color:#aaa;font-style:italic;">—</div>
+        <div id="guess-conf"></div>
+      </div>
+
+      <div style="margin-top:10px;margin-bottom:4px;font-size:12px;color:#888;">your answer</div>
+      <div class="row">
+        <input type="text" id="ua" placeholder="Type your answer…" onkeydown="if(event.key==='Enter')checkAns()" style="flex:1;" />
+        <button id="check-btn" onclick="checkAns()">Check</button>
+        <button id="ask-btn" onclick="newQ()">Ask</button>
+        <button id="next-btn" onclick="nextQ()">Next</button>
+      </div>
+      <div id="fb" style="font-size:13px;min-height:18px;margin-top:6px;"></div>
+    </div>
+
+    <div class="card">
+      <div class="lbl">memory log</div>
+      <div id="log">No activity yet…</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('bc');
+const ctx = canvas.getContext('2d');
+const W = 300, H = 280;
+const mem = [], stats = { c: 0, w: 0 };
+let curQ = null, answered = false;
+
+const neurons = [], synapses = [];
+const layers = [
+  { x: 50, n: 5, col: '#534AB7' },
+  { x: 100, n: 7, col: '#7F77DD' },
+  { x: 155, n: 8, col: '#AFA9EC' },
+  { x: 210, n: 7, col: '#7F77DD' },
+  { x: 262, n: 5, col: '#534AB7' }
+];
+let nid = 0;
+layers.forEach((l, li) => {
+  const step = 230 / (l.n + 1);
+  for (let i = 0; i < l.n; i++) {
+    neurons.push({ id: nid++, x: l.x + (Math.random() * 12 - 6), y: 30 + step * (i + 1) + (Math.random() * 10 - 5), layer: li, col: l.col, fire: 0 });
+  }
+});
+neurons.forEach(n => {
+  neurons.forEach(m => {
+    if (m.layer === n.layer + 1 && Math.random() < 0.45)
+      synapses.push({ a: n.id, b: m.id, w: Math.random() * 0.6 + 0.2, fire: 0 });
+  });
+});
+
+function hexRgb(h) { return [parseInt(h.slice(1,3),16), parseInt(h.slice(3,5),16), parseInt(h.slice(5,7),16)].join(','); }
+
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+  ctx.save();
+  ctx.beginPath(); ctx.ellipse(150, 148, 122, 112, 0, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(127,119,221,0.05)'; ctx.fill();
+  ctx.strokeStyle = 'rgba(127,119,221,0.15)'; ctx.lineWidth = 1; ctx.stroke();
+  ctx.restore();
+  [[75,80,175,70],[58,125,205,118],[70,175,198,168],[88,215,188,208]].forEach(([x1,y1,x2,y2]) => {
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2);
+    ctx.strokeStyle = 'rgba(127,119,221,0.09)'; ctx.lineWidth = 1; ctx.stroke();
+  });
+  synapses.forEach(s => {
+    const a = neurons[s.a], b = neurons[s.b];
+    const alpha = s.fire > 0 ? Math.min(s.fire, 1) : 0.07;
+    ctx.beginPath(); ctx.moveTo(a.x, a.y);
+    const cx = (a.x + b.x) / 2, cy = (a.y + b.y) / 2 - 12;
+    ctx.quadraticCurveTo(cx, cy, b.x, b.y);
+    ctx.strokeStyle = s.fire > 0 ? `rgba(239,159,39,${alpha})` : 'rgba(127,119,221,0.07)';
+    ctx.lineWidth = s.fire > 0 ? 1.4 * s.fire : 0.5; ctx.stroke();
+    if (s.fire > 0) s.fire = Math.max(0, s.fire - 0.04);
+  });
+  neurons.forEach(n => {
+    const f = n.fire > 0;
+    const r = f ? 6 + n.fire * 3 : 4.5;
+    const al = f ? Math.min(0.3 + n.fire * 0.5, 0.9) : 0.35;
+    ctx.beginPath(); ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
+    ctx.fillStyle = f ? `rgba(239,159,39,${al})` : `rgba(${hexRgb(n.col)},${al})`;
+    ctx.fill();
+    if (f) {
+      ctx.beginPath(); ctx.arc(n.x, n.y, r + 3, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(239,159,39,${n.fire * 0.35})`; ctx.lineWidth = 1; ctx.stroke();
+      n.fire = Math.max(0, n.fire - 0.05);
+    }
+  });
+  requestAnimationFrame(draw);
+}
+
+function fireN(nid2, depth = 0) {
+  if (depth > 4) return;
+  const n = neurons[nid2]; if (!n) return;
+  n.fire = 1;
+  setTimeout(() => {
+    synapses.filter(s => s.a === nid2).forEach(s => {
+      s.fire = 0.85 * s.w;
+      setTimeout(() => fireN(s.b, depth + 1), 130 + Math.random() * 70);
+    });
+  }, 55);
+}
+
+function triggerThink(intensity, duration = 1400) {
+  const fill = document.getElementById('tf'), lbl = document.getElementById('tl');
+  fill.style.width = (intensity * 100) + '%';
+  fill.style.background = intensity > 0.7 ? '#BA7517' : intensity > 0.4 ? '#7F77DD' : '#9FE1CB';
+  lbl.textContent = intensity > 0.7 ? 'intense firing!' : intensity > 0.4 ? 'processing…' : 'light activity';
+  const l0 = neurons.filter(n => n.layer === 0);
+  let count = Math.round(intensity * 7), i = 0;
+  const iv = setInterval(() => {
+    fireN(l0[Math.floor(Math.random() * l0.length)].id);
+    if (++i >= count) clearInterval(iv);
+  }, 190);
+  setTimeout(() => { fill.style.width = '0%'; lbl.textContent = 'idle'; }, duration);
+}
+
+function brainGuess(q) {
+  const exact = mem.find(m => m.q.toLowerCase() === q.q.toLowerCase());
+  if (exact) return { guess: exact.a, conf: Math.round(exact.strength * 100) };
+  const words = q.q.toLowerCase().split(' ').filter(w => w.length > 2);
+  const partial = mem.filter(m => words.some(w => m.q.toLowerCase().includes(w)));
+  if (partial.length) {
+    const best = partial.sort((a, b) => b.strength - a.strength)[0];
+    return { guess: best.a, conf: Math.round(best.strength * 35) };
+  }
+  return { guess: "I don't know", conf: 0 };
+}
+
+function showGuess(g, state) {
+  const box = document.getElementById('guess-box');
+  const val = document.getElementById('guess-val');
+  const conf = document.getElementById('guess-conf');
+  box.className = '';
+  val.textContent = g.guess;
+  val.style.fontStyle = g.guess === "I don't know" ? 'italic' : 'normal';
+  val.style.color = '';
+  conf.textContent = g.conf > 0 ? `confidence: ${g.conf}%` : 'no memory of this';
+  if (state === 'correct') box.classList.add('g-correct');
+  else if (state === 'wrong') box.classList.add('g-wrong');
+}
+
+function setButtons(state) {
+  const ask = document.getElementById('ask-btn');
+  const check = document.getElementById('check-btn');
+  const next = document.getElementById('next-btn');
+  const ua = document.getElementById('ua');
+  if (state === 'idle') {
+    ask.style.display = ''; check.style.display = 'none'; next.style.display = 'none';
+    ua.disabled = true; ua.placeholder = 'Press Ask first…';
+  } else if (state === 'asking') {
+    ask.style.display = 'none'; check.style.display = ''; next.style.display = 'none';
+    ua.disabled = false; ua.placeholder = 'Type your answer…'; ua.focus();
+  } else if (state === 'answered') {
+    ask.style.display = 'none'; check.style.display = 'none'; next.style.display = '';
+    ua.disabled = true;
+  }
+}
+
+function teach() {
+  const q = document.getElementById('tq').value.trim();
+  const a = document.getElementById('ta').value.trim();
+  const msg = document.getElementById('tm');
+  if (!q || !a) { msg.textContent = 'Fill in both fields.'; return; }
+  const ex = mem.find(m => m.q.toLowerCase() === q.toLowerCase());
+  if (ex) { ex.a = a; ex.strength = Math.min(ex.strength + 0.3, 1); msg.textContent = 'Reinforced existing memory!'; }
+  else { mem.push({ q, a, strength: 0.5, correct: 0, wrong: 0 }); msg.textContent = 'Learned!'; }
+  document.getElementById('tq').value = '';
+  document.getElementById('ta').value = '';
+  document.getElementById('sm').textContent = mem.length;
+  updateLevel(); triggerThink(0.6, 1200);
+  addLog(`Learned: "${q}" → "${a}"`, 'n');
+}
+
+function pickQ() {
+  const weights = mem.map(m => 1 - m.strength * 0.5);
+  const total = weights.reduce((a, b) => a + b, 0);
+  let r = Math.random() * total, cum = 0;
+  let picked = mem[mem.length - 1];
+  for (let i = 0; i < mem.length; i++) { cum += weights[i]; if (r <= cum) { picked = mem[i]; break; } }
+  return picked;
+}
+
+function newQ() {
+  if (!mem.length) { document.getElementById('train-q').textContent = 'Teach me something first!'; return; }
+  curQ = pickQ(); answered = false;
+  document.getElementById('train-q').textContent = curQ.q;
+  document.getElementById('fb').textContent = '';
+  document.getElementById('ua').value = '';
+  showGuess(brainGuess(curQ), '');
+  setButtons('asking');
+  triggerThink(0.45, 900);
+}
+
+function nextQ() { newQ(); }
+
+function checkAns() {
+  if (!curQ || answered) return;
+  const ans = document.getElementById('ua').value.trim();
+  if (!ans) return;
+  answered = true;
+  const fb = document.getElementById('fb');
+  const correct = ans.toLowerCase() === curQ.a.toLowerCase();
+  const g = brainGuess(curQ);
+  if (correct) {
+    fb.textContent = 'Correct!'; fb.style.color = '#3B6D11';
+    curQ.correct++; curQ.strength = Math.min(curQ.strength + 0.15, 1);
+    stats.c++; triggerThink(0.85, 1600);
+    showGuess(g, 'correct');
+    addLog(`Correct: "${curQ.q}" — brain guessed "${g.guess}"`, 'c');
+  } else {
+    fb.textContent = `Wrong — right answer: "${curQ.a}"`; fb.style.color = '#A32D2D';
+    curQ.wrong++; curQ.strength = Math.max(curQ.strength - 0.1, 0.1);
+    stats.w++; triggerThink(0.3, 1000);
+    showGuess(g, 'wrong');
+    addLog(`Wrong: "${curQ.q}" — brain guessed "${g.guess}", answer: "${curQ.a}"`, 'w');
+  }
+  const tot = stats.c + stats.w;
+  document.getElementById('sa').textContent = tot ? Math.round(stats.c / tot * 100) + '%' : '—';
+  updateLevel(); setButtons('answered');
+}
+
+function updateLevel() {
+  document.getElementById('sl').textContent = Math.max(1, Math.floor(mem.length / 3) + Math.floor(stats.c / 5));
+}
+
+function addLog(msg, type) {
+  const log = document.getElementById('log');
+  const d = document.createElement('div');
+  d.textContent = msg;
+  if (type === 'c') d.className = 'lc';
+  if (type === 'w') d.className = 'lw';
+  log.insertBefore(d, log.firstChild);
+  while (log.children.length > 30) log.removeChild(log.lastChild);
+}
+
+setButtons('idle');
+draw();
+</script>
+</body>
+</html>
